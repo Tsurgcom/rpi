@@ -1,0 +1,109 @@
+services:
+  traefik:
+    image: traefik:v3.0
+    restart: always
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.forwardedHeaders.insecure=true"
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  cloudflared:
+    image: cloudflare/cloudflared:2025.1.0
+    restart: always
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    networks:
+      - traefik-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:1.30.0
+    restart: always
+    ports:
+      - "127.0.0.1:5678:5678"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n.rule=Host(`${N8N_SUBDOMAIN}.${DOMAIN_NAME}`)"
+      - "traefik.http.routers.n8n.entrypoints=web"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+      - "traefik.http.middlewares.n8n-headers.headers.browserXSSFilter=true"
+      - "traefik.http.middlewares.n8n-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.n8n-headers.headers.STSSeconds=315360000"
+      - "traefik.http.middlewares.n8n-headers.headers.STSIncludeSubdomains=true"
+      - "traefik.http.middlewares.n8n-headers.headers.STSPreload=true"
+      - "traefik.http.routers.n8n.middlewares=n8n-headers@docker"
+    environment:
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_HOST=${N8N_SUBDOMAIN}.${DOMAIN_NAME}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - N8N_RUNNERS_ENABLED=true
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://${N8N_SUBDOMAIN}.${DOMAIN_NAME}/
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      - TZ=${GENERIC_TIMEZONE}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n-compose/local-files:/files
+    networks:
+      - traefik-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  gitea:
+    image: docker.gitea.com/gitea:1.25.2
+    container_name: gitea
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__server__SSH_DOMAIN=${GITEA_SUBDOMAIN}.${DOMAIN_NAME}
+      - GITEA__server__SSH_PORT=22
+    restart: always
+    volumes:
+      - ./gitea:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "3000:3000"
+      - "222:22"
+    networks:
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gitea.rule=Host(`${GITEA_SUBDOMAIN}.${DOMAIN_NAME}`)"
+      - "traefik.http.services.gitea-websecure.loadbalancer.server.port=3000"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 384M
+
+volumes:
+  traefik_data:
+  n8n_data:
+
+networks:
+  traefik-net:
+    external: false
