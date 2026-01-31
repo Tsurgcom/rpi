@@ -10,7 +10,7 @@ Reverse proxy and load balancer that routes incoming traffic to services based o
 - Use Docker provider for automatic service discovery
 - Forward Cloudflare headers for proper HTTPS detection
 
-**⚠️ Security Warning:** The Traefik dashboard is exposed at port 8080 without authentication. Do not expose this to the public internet.
+**Note:** The Traefik API and dashboard are disabled entirely for security.
 
 ### Cloudflare Tunnel
 Secure tunnel that connects this server to Cloudflare's network, providing:
@@ -60,7 +60,6 @@ Self-hosted Git service offering:
 
 ⚠️ **Important security considerations:**
 
-- **Traefik Dashboard**: Port 8080 is exposed without authentication. Access only from trusted networks or disable entirely with `--api.insecure=false`
 - **Docker Socket**: Traefik has read-only access to Docker socket. Only expose in trusted networks
 - **Environment Variables**: Sensitive values in `.env` - never commit this file
 - **Tunnel Token**: Keep your Cloudflare tunnel token secure and rotate if compromised
@@ -69,11 +68,9 @@ Self-hosted Git service offering:
 ### Recommended Security Improvements
 
 1. Enable Traefik authentication (basic auth or forward auth)
-2. Set resource limits in `deploy` section
-3. Pin image versions instead of using `latest`
-4. Add rate limiting middleware
-5. Use Docker secrets for sensitive data
-6. Enable Traefik metrics with authentication
+2. Add rate limiting middleware
+3. Use Docker secrets for sensitive data
+4. Enable Traefik metrics with authentication
 
 ## Directory Structure
 
@@ -93,7 +90,6 @@ Self-hosted Git service offering:
 | Service   | Port | Description                    |
 |-----------|------|--------------------------------|
 | Traefik   | 80   | HTTP traffic (main entrypoint) |
-| Traefik   | 8080 | Dashboard (⚠️ unauthenticated) |
 | n8n       | 5678 | Internal only (via Traefik)    |
 | Gitea     | 3000 | Web UI (via Traefik)           |
 | Gitea     | 22   | SSH (port 222 external)        |
