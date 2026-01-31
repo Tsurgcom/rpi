@@ -3,7 +3,7 @@ services:
     image: traefik:v3.0
     restart: always
     command:
-      - "--api.dashboard=true"
+      - "--api=false"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
